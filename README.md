@@ -4,7 +4,26 @@ A compact **top-down dungeon** built with **HTML5 Canvas** and **JavaScript (ES 
 
 Repository: [github.com/DanailGrigorov07/DungeonCrawler](https://github.com/DanailGrigorov07/DungeonCrawler)
 
-![FSM diagram](docs/fsm-diagram.svg)
+Bot FSM (same logic as [`js/bot.js`](js/bot.js)). GitHub does not show SVG images inside README files, so this uses **Mermaid** (renders on GitHub). Vector copy: [`docs/fsm-diagram.svg`](docs/fsm-diagram.svg).
+
+```mermaid
+stateDiagram-v2
+  [*] --> IDLE
+  IDLE --> PATROL: idleTimer done
+  PATROL --> CHASE: player within 100px, HP at least 20 percent
+  PATROL --> FLEE: player within 100px, HP below 20 percent
+  CHASE --> ATTACK: in attack range
+  CHASE --> FLEE: HP below 20 percent
+  CHASE --> PATROL: player beyond 200px
+  ATTACK --> CHASE: out of range or attack ends
+  ATTACK --> FLEE: HP below 20 percent
+  FLEE --> PATROL: player beyond 200px
+  IDLE --> DEAD: health zero or less
+  PATROL --> DEAD: health zero or less
+  CHASE --> DEAD: health zero or less
+  ATTACK --> DEAD: health zero or less
+  FLEE --> DEAD: health zero or less
+```
 
 ## Run locally (required — do not open `index.html` with double-click)
 

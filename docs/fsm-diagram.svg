@@ -5,7 +5,7 @@
     </marker>
   </defs>
   <rect width="100%" height="100%" fill="#0b0f14"/>
-  <text x="460" y="28" fill="#e8eef5" font-family="Segoe UI, sans-serif" font-size="18" text-anchor="middle">Bot FSM ó Depth Run (dungeon)</text>
+  <text x="460" y="28" fill="#e8eef5" font-family="Segoe UI, sans-serif" font-size="18" text-anchor="middle">Bot FSM - Depth Run (dungeon)</text>
   <g font-family="Segoe UI, sans-serif" font-size="12" fill="#e8eef5">
     <circle cx="120" cy="120" r="36" fill="#1a2434" stroke="#7eb8ff" stroke-width="2"/>
     <text x="120" y="125" text-anchor="middle">IDLE</text>
@@ -38,6 +38,6 @@
     <text x="340" y="240">dist &gt; 200</text>
     <text x="560" y="240">dist &gt; 200</text>
   </g>
-  <text x="40" y="90" fill="#ffd" font-family="Segoe UI, sans-serif" font-size="11">start ù</text>
+  <text x="40" y="90" fill="#ffd" font-family="Segoe UI, sans-serif" font-size="11">start -&gt; IDLE</text>
   <line x1="70" y1="85" x2="84" y2="120" stroke="#ffd" stroke-width="1.5" marker-end="url(#arrow)"/>
 </svg>
