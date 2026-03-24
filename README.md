@@ -18,11 +18,19 @@ This project uses **JavaScript ES modules** (`import` / `export`). Browsers bloc
 
 ## Play online (GitHub Pages)
 
-After you enable **GitHub Pages** for this repo (Settings → Pages → deploy from `main` / root or `/docs`), the game will be available at:
+The repo includes [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml), which publishes the site on every push to `main`.
+
+**One-time setup (in the GitHub web UI):**
+
+1. Open **Settings** → **Pages** → **Build and deployment**.
+2. Under **Source**, choose **GitHub Actions** (not “Deploy from a branch”).
+3. Push to `main` (or open **Actions** → **Deploy to GitHub Pages** → **Run workflow**) and wait for the green check.
+
+Live URL:
 
 **https://danailgrigorov07.github.io/DungeonCrawler/**
 
-*(URL assumes the default `username.github.io/repository` pattern.)*
+*(If you prefer not to use Actions: set Source to **Deploy from a branch**, branch **main**, folder **/ (root)** — no workflow required.)*
 
 ## How to play
 
@@ -112,6 +120,7 @@ Then open the URL shown (for example `http://localhost:8080`).
 
 ## Project structure
 
+- [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml) — GitHub Pages deploy (static site)  
 - [`index.html`](index.html) — Canvas and UI overlays  
 - [`css/styles.css`](css/styles.css) — Layout and screens  
 - [`js/main.js`](js/main.js) — Event wiring  
