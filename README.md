@@ -96,14 +96,6 @@ The FSM class lives in [`js/fsm.js`](js/fsm.js). Bot logic is in [`js/bot.js`](j
 - Web Audio API for procedural BGM/SFX  
 - Tile-based collision (`TileMap`) for dungeon walls  
 
-## Screenshot / GIF
-
-Add a gameplay screenshot or GIF to this repository and embed it here, for example:
-
-```markdown
-![Gameplay](docs/gameplay.gif)
-```
-
 ## Local development
 
 Same rule as above: always use `http://localhost`, not `file://`. On Windows you can use [`run-game.bat`](run-game.bat). Other options:
