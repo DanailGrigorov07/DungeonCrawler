@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="420" viewBox="0 0 920 420">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#7eb8ff"/>
+    </marker>
+  </defs>
+  <rect width="100%" height="100%" fill="#0b0f14"/>
+  <text x="460" y="28" fill="#e8eef5" font-family="Segoe UI, sans-serif" font-size="18" text-anchor="middle">Bot FSM ó Depth Run (dungeon)</text>
+  <g font-family="Segoe UI, sans-serif" font-size="12" fill="#e8eef5">
+    <circle cx="120" cy="120" r="36" fill="#1a2434" stroke="#7eb8ff" stroke-width="2"/>
+    <text x="120" y="125" text-anchor="middle">IDLE</text>
+    <circle cx="320" cy="120" r="36" fill="#1a2434" stroke="#7eb8ff" stroke-width="2"/>
+    <text x="320" y="125" text-anchor="middle">PATROL</text>
+    <circle cx="520" cy="120" r="36" fill="#1a2434" stroke="#7eb8ff" stroke-width="2"/>
+    <text x="520" y="125" text-anchor="middle">CHASE</text>
+    <circle cx="720" cy="120" r="36" fill="#1a2434" stroke="#7eb8ff" stroke-width="2"/>
+    <text x="720" y="125" text-anchor="middle">ATTACK</text>
+    <circle cx="420" cy="280" r="36" fill="#1a2434" stroke="#7eb8ff" stroke-width="2"/>
+    <text x="420" y="285" text-anchor="middle">FLEE</text>
+    <circle cx="720" cy="280" r="36" fill="#1a2434" stroke="#7eb8ff" stroke-width="2"/>
+    <text x="720" y="285" text-anchor="middle">DEAD</text>
+  </g>
+  <g stroke="#7eb8ff" stroke-width="1.5" fill="none" marker-end="url(#arrow)">
+    <line x1="156" y1="120" x2="284" y2="120"/>
+    <line x1="356" y1="120" x2="484" y2="120"/>
+    <line x1="556" y1="120" x2="684" y2="120"/>
+    <line x1="520" y1="156" x2="440" y2="244"/>
+    <line x1="720" y1="156" x2="720" y2="244"/>
+    <line x1="384" y1="280" x2="284" y2="156"/>
+    <line x1="456" y1="280" x2="684" y2="156"/>
+  </g>
+  <g font-family="Segoe UI, sans-serif" font-size="10" fill="#a8c4e8">
+    <text x="200" y="112">idleTimer done</text>
+    <text x="400" y="112">dist &lt; 100</text>
+    <text x="600" y="112">dist &lt; 30</text>
+    <text x="560" y="200">low HP / dist</text>
+    <text x="760" y="200">health &lt;= 0</text>
+    <text x="340" y="240">dist &gt; 200</text>
+    <text x="560" y="240">dist &gt; 200</text>
+  </g>
+  <text x="40" y="90" fill="#ffd" font-family="Segoe UI, sans-serif" font-size="11">start ù</text>
+  <line x1="70" y1="85" x2="84" y2="120" stroke="#ffd" stroke-width="1.5" marker-end="url(#arrow)"/>
+</svg>

@@ -1,0 +1,159 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  background: #0b0f14;
+  color: #e8eef5;
+}
+
+#app {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+}
+
+#game-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.overlay {
+  position: absolute;
+  pointer-events: none;
+}
+
+.overlay.screen,
+.overlay.toast,
+#toolbar {
+  pointer-events: auto;
+}
+
+.overlay.screen {
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: rgba(8, 12, 18, 0.82);
+  backdrop-filter: blur(6px);
+  padding: 2rem;
+}
+
+.overlay.screen.hidden,
+.hidden {
+  display: none !important;
+}
+
+#hud {
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-shadow: 0 1px 2px #000;
+  font-size: 0.95rem;
+}
+
+.hud-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  justify-content: center;
+}
+
+.hud-row.subtle {
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+
+h1 {
+  margin: 0 0 0.5rem;
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  letter-spacing: 0.04em;
+}
+
+h2 {
+  margin: 0 0 1rem;
+}
+
+.tagline {
+  max-width: 28rem;
+  opacity: 0.9;
+  margin-bottom: 1.5rem;
+}
+
+.btn {
+  font: inherit;
+  cursor: pointer;
+  border: none;
+  border-radius: 10px;
+  padding: 0.65rem 1.4rem;
+  background: #2a3544;
+  color: #e8eef5;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.btn:hover {
+  background: #364556;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn.primary {
+  background: linear-gradient(180deg, #3d7cc9, #2a5a9e);
+  color: #fff;
+}
+
+.btn.small {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.85rem;
+  border-radius: 8px;
+}
+
+.toolbar {
+  bottom: 12px;
+  right: 12px;
+  display: flex;
+  gap: 8px;
+}
+
+.toast {
+  bottom: 56px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: min(90vw, 420px);
+  padding: 10px 14px;
+  background: rgba(20, 28, 40, 0.95);
+  border: 1px solid #3a4a5e;
+  border-radius: 10px;
+  font-size: 0.9rem;
+}
+
+.toast p {
+  margin: 0;
+}
+
+kbd {
+  font: inherit;
+  font-size: 0.85em;
+  padding: 0.1em 0.4em;
+  border-radius: 4px;
+  border: 1px solid #5a6a7e;
+  background: #1a222c;
+}

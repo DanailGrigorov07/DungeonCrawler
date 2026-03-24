@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Depth Run — Compact dungeon (Canvas FSM)</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div id="app">
+    <canvas id="game-canvas" aria-label="Game world"></canvas>
+
+    <!-- HUD: drawn as HTML overlay (game entities stay on canvas) -->
+    <div id="hud" class="overlay hidden" aria-live="polite">
+      <div class="hud-row">
+        <span id="hud-health">HP: 100</span>
+        <span id="hud-score">Score: 0</span>
+        <span id="hud-level">Floor: 1 / 3</span>
+      </div>
+      <div class="hud-row subtle">
+        <span id="hud-aim">Aim: mouse</span>
+        <span id="hud-zoom">Zoom: 1.0x</span>
+      </div>
+    </div>
+
+    <div id="screen-menu" class="overlay screen">
+      <h1>Depth Run</h1>
+      <p class="tagline">Reach the glowing exit on each floor. Enemies use a finite state machine.</p>
+      <button type="button" id="btn-play" class="btn primary">Play</button>
+    </div>
+
+    <div id="screen-pause" class="overlay screen hidden">
+      <h2>Paused</h2>
+      <p>Press <kbd>ESC</kbd> to resume.</p>
+      <button type="button" id="btn-resume" class="btn">Resume</button>
+    </div>
+
+    <div id="screen-gameover" class="overlay screen hidden">
+      <h2>Game Over</h2>
+      <p id="go-score">Score: 0</p>
+      <button type="button" id="btn-restart" class="btn primary">Restart</button>
+    </div>
+
+    <div id="screen-victory" class="overlay screen hidden">
+      <h2>Escaped the Depths</h2>
+      <p id="vic-score">Score: 0</p>
+      <button type="button" id="btn-victory-menu" class="btn">Menu</button>
+    </div>
+
+    <div id="toolbar" class="overlay toolbar">
+      <button type="button" id="btn-mute" class="btn small" title="Toggle sound">Sound: On</button>
+      <button type="button" id="btn-help" class="btn small" title="Help (right-click also)">Help</button>
+    </div>
+
+    <div id="toast-help" class="overlay toast hidden" role="status">
+      <p>Right-click toggles this help. Wheel zooms. WASD to move. Reach the EXIT portal to advance.</p>
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
