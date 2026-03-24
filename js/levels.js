@@ -3,14 +3,15 @@ import { TileMap } from "./collision.js";
 export const TILE_SIZE = 36;
 
 /** @typedef {{ kind: "health" | "coin" }} PickupDef */
-/** @typedef {{ variant?: "grunt" | "brute" | "gunner" }} BotDef */
+/** @typedef {{ variant?: "grunt" | "brute" | "gunner" | "shotgun" }} BotDef */
 
 /**
  * @typedef {{
  *   id: string;
  *   name: string;
  *   rows: string[];
- *   portal: { tw: number; th: number };
+ *   bossRoom?: boolean;
+ *   portal: { tw: number; th: number } | null;
  *   pickups: PickupDef[];
  *   bots: BotDef[];
  * }} LevelDef
@@ -87,6 +88,30 @@ export const LEVELS = /** @type {LevelDef[]} */ ([
     pickups: [{ kind: "coin" }, { kind: "coin" }, { kind: "health" }],
     bots: [{ variant: "grunt" }, { variant: "gunner" }, { variant: "brute" }],
   },
+  {
+    id: "grand-knight",
+    name: "Grand Knight",
+    bossRoom: true,
+    rows: [
+      "##################################################",
+      "#................................................#",
+      "#................................................#",
+      "#................................................#",
+      "#................................................#",
+      "#................................................#",
+      "#................................................#",
+      "#................................................#",
+      "#................................................#",
+      "#................................................#",
+      "#................................................#",
+      "#................................................#",
+      "#................................................#",
+      "##################################################",
+    ],
+    portal: null,
+    pickups: [{ kind: "health" }, { kind: "health" }],
+    bots: [],
+  },
 ]);
 
 /**
@@ -96,6 +121,21 @@ export function parseTilesFromRows(rowStrings) {
   return rowStrings.map((row) =>
     row.split("").map((ch) => (ch === "#" ? 1 : 0)),
   );
+}
+
+/**
+ * Deep-clone tile grid for runtime mutation (e.g. boss arena cover).
+ * @param {string[]} rowStrings
+ */
+export function cloneTilesFromRows(rowStrings) {
+  return parseTilesFromRows(rowStrings).map((row) => [...row]);
+}
+
+/**
+ * @param {number[][]} tiles
+ */
+export function buildTileMapFromTiles(tiles) {
+  return new TileMap(TILE_SIZE, tiles);
 }
 
 /**

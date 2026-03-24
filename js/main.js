@@ -41,7 +41,7 @@ const game = new Game(canvas, audio, {
   onHudUpdate: (g) => {
     hudHealth.textContent = `HP: ${Math.max(0, Math.ceil(g.player.health))}`;
     hudScore.textContent = `Score: ${g.score}`;
-    hudLevel.textContent = `Floor: ${g.levelIndex + 1} / ${LEVELS.length}`;
+    hudLevel.textContent = `Floor: ${g.runLevelIndex + 1} / ${LEVELS.length}`;
     hudZoom.textContent = `Zoom: ${g.zoom.toFixed(2)}x`;
   },
   onScreenChange: (mode) => {
@@ -222,7 +222,7 @@ document.addEventListener("gameOver", (ev) => {
 });
 
 document.addEventListener("levelUp", (ev) => {
-  const lv = ev.detail?.level ?? game.levelIndex + 1;
+  const lv = ev.detail?.level ?? game.runLevelIndex + 1;
   hudLevel.textContent = `Floor: ${lv} / ${LEVELS.length}`;
 });
 

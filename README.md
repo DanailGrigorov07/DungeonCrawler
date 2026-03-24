@@ -1,6 +1,6 @@
 # Depth Run
 
-A compact **top-down dungeon** built with **HTML5 Canvas** and **JavaScript (ES modules)**. Cross **three short floors** by reaching the **EXIT** portal on each map; the final portal wins the run. **Grunt** and **brute** enemies use the same **FSM** (six states: IDLE, PATROL, CHASE, ATTACK, FLEE, DEAD)—brutes are slower but tougher.
+A compact **top-down dungeon** built with **HTML5 Canvas** and **JavaScript (ES modules)**. Clear **three dungeon floors** (order **randomized** each run) by reaching the **EXIT** portal, then defeat the **Grand Knight** boss in the **fourth** arena to win. **Grunt**, **brute**, **gunner**, and **shotgun** enemies use the same **FSM** (six states: IDLE, PATROL, CHASE, ATTACK, FLEE, DEAD)—brutes are slower but tougher; gunners and shotgunners shoot instead of melee in **ATTACK**.
 
 Repository: [github.com/DanailGrigorov07/DungeonCrawler](https://github.com/DanailGrigorov07/DungeonCrawler)
 
@@ -60,7 +60,7 @@ Live URL:
 - **Pause:** `ESC` (also pauses when the window loses focus or the tab is hidden)  
 - **Right-click:** toggle quick help (also use the Help button)
 
-**Goal:** find and enter the **EXIT** portal on each floor (placement is **random** on valid floor tiles, biased toward the **right** side of the map). **Pickups:** green orbs restore health; gold coins add score (they **pulse** visually; collection range is unchanged). **Combat:** destroy bots for points; avoid melee range. **Gunners** (magenta enemies) **shoot pink projectiles** that differ from your shots. **Dash:** **double-tap** `W` / `A` / `S` / `D` (or arrow keys) to dash in that direction (no invulnerability). **Progress:** your **current HP carries** between floors (except a fresh run from the menu). Floors use **tile maps** with corridors, side rooms, and dead ends; **player spawn**, **enemies**, **pickups**, and **patrol routes** are randomized each run from walkable tiles (enemies favor **dead ends** and **open room** cells when possible).
+**Goal:** find and enter the **EXIT** portal on each dungeon floor (placement is **random** on valid floor tiles, biased toward the **right** side). The **boss arena** has no exit portal—**win** by defeating the boss. **Pickups:** green orbs restore health; gold coins add score (they **pulse** visually; collection range is unchanged). **Combat:** destroy bots for points; avoid melee range. **Gunners** (magenta) and **shotgunners** (pink-purple) fire enemy projectiles; shotgunners fire **two parallel shots**. On each of the **first three floors**, one **extra** shotgun enemy spawns in addition to the level’s bot list. **Dash:** **double-tap** `W` / `A` / `S` / `D` (or arrow keys) to dash in that direction (no invulnerability). **Progress:** your **current HP carries** between floors (except a fresh run from the menu). **Spawns** (player, enemies, pickups, portal tiles) use **corridor / junction** tiles only—not **dead ends**, **4-neighbor room centers**, **2×2 floor boxes**, or **1×2 / 2×1** cover strips in the boss arena (cover there is **1×1** or **2×2** only). **Patrol waypoints** are randomized walks on the floor graph.
 
 ## Implemented events
 
@@ -84,7 +84,7 @@ Live URL:
 | Custom `gameStart` | UI when a run starts |
 | Custom `gameOver` | Game over screen with score |
 | Custom `levelUp` | Entered the exit portal — next floor |
-| Custom `gameVictory` | Cleared the final floor |
+| Custom `gameVictory` | Defeated the boss (final arena) |
 
 ## Bot AI (FSM behavior)
 
@@ -93,9 +93,11 @@ Live URL:
 - **CHASE:** Moves toward the player. Enters **attack** within **30px**. Returns to **patrol** if the player moves beyond **200px**. Drops to **flee** if health is below **20%**.  
 - **ATTACK:** Melee damage window; repeats the swing timer while still in range, otherwise returns to chase.  
 - **FLEE:** Runs away until the player is beyond **200px**, then resumes **patrol**.  
-- **DEAD:** Corpse timer, then the entity is removed. Each floor spawns bots from [`js/levels.js`](js/levels.js) data at **random valid positions** (see [`js/mapAnalysis.js`](js/mapAnalysis.js)).
+- **DEAD:** Corpse timer, then the entity is removed. Each floor spawns bots from [`js/levels.js`](js/levels.js) at **random valid positions** (see [`js/mapAnalysis.js`](js/mapAnalysis.js)).
 
-**Variants:** **grunt** (melee), **brute** (tougher melee), **gunner** (ranged; uses the same FSM states, but **ATTACK** fires projectiles at the player).
+**Variants:** **grunt** (melee), **brute** (tougher melee), **gunner** (single-shot ranged), **shotgun** (two parallel shots per salvo).
+
+**Boss (`js/boss.js`):** not FSM-driven—**skirmish** (move + bullet fans), **charge** (rush until blocked; **body contact** damages the player), **vulnerable** (3s window with **double damage** taken). After a charge ends, the boss cannot charge again for **6 seconds**.
 
 The FSM class lives in [`js/fsm.js`](js/fsm.js). Bot logic is in [`js/bot.js`](js/bot.js). Walls use [`js/collision.js`](js/collision.js).
 
@@ -149,6 +151,7 @@ Then open the URL shown (for example `http://localhost:8080`).
 - [`js/collision.js`](js/collision.js) — Tile map + circle-vs-wall  
 - [`js/fsm.js`](js/fsm.js) — Reusable `FiniteStateMachine`  
 - [`js/bot.js`](js/bot.js) — Enemy + FSM states  
+- [`js/boss.js`](js/boss.js) — Final arena boss (charge / vulnerable / shooting)  
 - [`js/player.js`](js/player.js) — Player movement  
 - [`js/input.js`](js/input.js) — Input state  
 - [`js/audio.js`](js/audio.js) — Audio and mute persistence  

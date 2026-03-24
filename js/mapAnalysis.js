@@ -48,6 +48,62 @@ export function analyzeFloorTopology(tiles) {
 }
 
 /**
+ * Cells that belong to any 2×2 block of floor (small “box” rooms / alcoves).
+ * @param {number[][]} tiles
+ * @returns {Set<string>}
+ */
+export function cellsIn2x2FloorBlocks(tiles) {
+  const rows = tiles.length;
+  const cols = tiles[0].length;
+  const s = new Set();
+  for (let ty = 0; ty < rows - 1; ty++) {
+    for (let tx = 0; tx < cols - 1; tx++) {
+      if (
+        tiles[ty][tx] === 0 &&
+        tiles[ty][tx + 1] === 0 &&
+        tiles[ty + 1][tx] === 0 &&
+        tiles[ty + 1][tx + 1] === 0
+      ) {
+        s.add(`${tx},${ty}`);
+        s.add(`${tx + 1},${ty}`);
+        s.add(`${tx},${ty + 1}`);
+        s.add(`${tx + 1},${ty + 1}`);
+      }
+    }
+  }
+  return s;
+}
+
+/**
+ * Corridor / junction tiles only: excludes dead ends, 4-neighbor room centers, and 2×2 floor boxes.
+ * @param {{ floor: Cell[]; deadEnds: Cell[]; roomInteriors: Cell[] }} topology
+ * @param {number[][]} tiles
+ */
+export function getSpawnableFloor(topology, tiles) {
+  const bad = new Set();
+  for (const c of topology.deadEnds) bad.add(`${c.tx},${c.ty}`);
+  for (const c of topology.roomInteriors) bad.add(`${c.tx},${c.ty}`);
+  for (const k of cellsIn2x2FloorBlocks(tiles)) bad.add(k);
+  const out = topology.floor.filter((c) => !bad.has(`${c.tx},${c.ty}`));
+  return out.length ? out : topology.floor;
+}
+
+/**
+ * @param {Cell} anchor
+ * @param {number} tw
+ * @param {number} th
+ * @param {Set<string>} spawnableKeys
+ */
+function portalRectSpawnSafe(anchor, tw, th, spawnableKeys) {
+  for (let dy = 0; dy < th; dy++) {
+    for (let dx = 0; dx < tw; dx++) {
+      if (!spawnableKeys.has(`${anchor.tx + dx},${anchor.ty + dy}`)) return false;
+    }
+  }
+  return true;
+}
+
+/**
  * @param {Cell[]} cells
  * @param {Cell} portalAnchor
  * @param {number} tw
@@ -116,6 +172,10 @@ export function pickRandomPortalAnchor(tiles, tw, th) {
  * @returns {{ anchor: Cell; tw: number; th: number }}
  */
 export function resolvePortalPlacement(tiles, preferredTw, preferredTh) {
+  const topo = analyzeFloorTopology(tiles);
+  const spawnable = getSpawnableFloor(topo, tiles);
+  const spawnKeys = new Set(spawnable.map((c) => `${c.tx},${c.ty}`));
+
   const sizeAttempts = [
     [preferredTw, preferredTh],
     [2, Math.min(preferredTh, 3)],
@@ -125,14 +185,29 @@ export function resolvePortalPlacement(tiles, preferredTw, preferredTh) {
   ];
   for (const [tw, th] of sizeAttempts) {
     if (tw < 1 || th < 1) continue;
-    const a = pickRandomPortalAnchor(tiles, tw, th);
-    if (a) return { anchor: a, tw, th };
+    let anchors = findPortalAnchors(tiles, tw, th, { minTxFrac: 0.52 }).filter((a) =>
+      portalRectSpawnSafe(a, tw, th, spawnKeys),
+    );
+    if (anchors.length === 0)
+      anchors = findPortalAnchors(tiles, tw, th, { minTxFrac: 0.35 }).filter((a) =>
+        portalRectSpawnSafe(a, tw, th, spawnKeys),
+      );
+    if (anchors.length === 0)
+      anchors = findPortalAnchors(tiles, tw, th, { minTxFrac: 0 }).filter((a) =>
+        portalRectSpawnSafe(a, tw, th, spawnKeys),
+      );
+    if (anchors.length === 0) anchors = findPortalAnchors(tiles, tw, th, { minTxFrac: 0.52 });
+    if (anchors.length === 0) anchors = findPortalAnchors(tiles, tw, th, { minTxFrac: 0.35 });
+    if (anchors.length === 0) anchors = findPortalAnchors(tiles, tw, th, { minTxFrac: 0 });
+    if (anchors.length > 0) {
+      const a = anchors[Math.floor(Math.random() * anchors.length)];
+      return { anchor: a, tw, th };
+    }
   }
-  const topo = analyzeFloorTopology(tiles);
   const minTx = Math.floor(topo.cols * 0.45);
-  const right = topo.floor.filter((c) => c.tx >= minTx);
-  const pool = right.length ? right : topo.floor;
-  const c = pickRandom(pool);
+  const right = spawnable.filter((c) => c.tx >= minTx);
+  const pool = right.length ? right : spawnable;
+  const c = pickRandom(pool.length ? pool : topo.floor);
   return { anchor: c, tw: 1, th: 1 };
 }
 
@@ -176,9 +251,10 @@ export function isFarFromAll(cell, occupied, minDist) {
 }
 
 /**
- * Prefer dead ends and room interiors; fall back to any floor tile.
+ * Picks enemy spawns on corridor/junction tiles only (not dead ends or box rooms).
  * Relaxes distance rules if not enough spots exist.
  * @param {{ deadEnds: Cell[]; roomInteriors: Cell[]; floor: Cell[] }} topology
+ * @param {number[][]} tiles
  * @param {Cell} playerCell
  * @param {Cell} portalAnchor
  * @param {number} portalTw
@@ -187,24 +263,15 @@ export function isFarFromAll(cell, occupied, minDist) {
  */
 export function pickEnemySpawnCells(
   topology,
+  tiles,
   playerCell,
   portalAnchor,
   portalTw,
   portalTh,
   count,
 ) {
-  const pool = [];
-  const seen = new Set();
-  const pushUnique = (c) => {
-    const k = `${c.tx},${c.ty}`;
-    if (seen.has(k)) return;
-    seen.add(k);
-    pool.push(c);
-  };
-
-  for (const c of topology.deadEnds) pushUnique(c);
-  for (const c of topology.roomInteriors) pushUnique(c);
-  for (const c of topology.floor) pushUnique(c);
+  let pool = getSpawnableFloor(topology, tiles);
+  if (pool.length === 0) pool = topology.floor;
 
   const blocked = new Set();
   const blockCell = (c) => blocked.add(`${c.tx},${c.ty}`);
@@ -295,4 +362,69 @@ export function pickPickupCells(floor, reserved, count) {
     reserved.add(`${c.tx},${c.ty}`);
   }
   return out;
+}
+
+/**
+ * Floor cell for boss spawn — far from the player.
+ * @param {Cell[]} floor
+ * @param {Cell} playerCell
+ * @param {number} [minDist]
+ */
+export function pickBossSpawnCell(floor, playerCell, minDist = 14) {
+  const pool = floor.filter((c) => manhattan(c, playerCell) >= minDist);
+  if (pool.length === 0) {
+    let best = floor[0];
+    let bestD = -1;
+    for (const c of floor) {
+      const d = manhattan(c, playerCell);
+      if (d > bestD) {
+        bestD = d;
+        best = c;
+      }
+    }
+    return best;
+  }
+  return pickRandom(pool);
+}
+
+/**
+ * Places random solid cover: each piece is 1×1, 2×1, 1×2, or 2×2 tiles (no larger).
+ * At least `minCount` pieces; total count is random up to `maxCount`.
+ * @param {number[][]} tiles — mutated in place (0 floor, 1 wall)
+ * @param {{ minCount?: number; maxCount?: number }} [opts]
+ */
+export function placeRandomCoverBlocks(tiles, opts = {}) {
+  const minCount = opts.minCount ?? 4;
+  const maxCount = opts.maxCount ?? 14;
+  const targetCount = minCount + Math.floor(Math.random() * (maxCount - minCount + 1));
+  const rows = tiles.length;
+  const cols = tiles[0].length;
+  let placed = 0;
+  let attempts = 0;
+  while (placed < targetCount && attempts < 800) {
+    attempts += 1;
+    // Only 1×1 or 2×2 blocks (no 1×2 / 2×1 strips)
+    const big = Math.random() < 0.45;
+    const w = big ? 2 : 1;
+    const h = big ? 2 : 1;
+    const margin = 1;
+    const maxTx = cols - w - margin;
+    const maxTy = rows - h - margin;
+    if (maxTx < margin || maxTy < margin) break;
+    const tx = margin + Math.floor(Math.random() * (maxTx - margin + 1));
+    const ty = margin + Math.floor(Math.random() * (maxTy - margin + 1));
+    let ok = true;
+    for (let dy = 0; dy < h && ok; dy++) {
+      for (let dx = 0; dx < w && ok; dx++) {
+        if (tiles[ty + dy][tx + dx] !== 0) ok = false;
+      }
+    }
+    if (!ok) continue;
+    for (let dy = 0; dy < h; dy++) {
+      for (let dx = 0; dx < w; dx++) {
+        tiles[ty + dy][tx + dx] = 1;
+      }
+    }
+    placed += 1;
+  }
 }

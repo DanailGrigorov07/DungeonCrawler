@@ -1,8 +1,11 @@
 import { Player } from "./player.js";
 import { Bot } from "./bot.js";
+import { Boss } from "./boss.js";
 import {
   LEVELS,
   buildTileMap,
+  buildTileMapFromTiles,
+  cloneTilesFromRows,
   tileCenter,
   portalWorldRect,
 } from "./levels.js";
@@ -15,7 +18,20 @@ import {
   pickPickupCells,
   pickRandom,
   resolvePortalPlacement,
+  placeRandomCoverBlocks,
+  pickBossSpawnCell,
+  getSpawnableFloor,
 } from "./mapAnalysis.js";
+
+/** Shuffle floors 0–2; boss (index 3) is always last. */
+function shuffleRunOrder() {
+  const a = [0, 1, 2];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a.concat([3]);
+}
 
 export class Game {
   constructor(canvas, audio, options = {}) {
@@ -39,6 +55,10 @@ export class Game {
     this.portalRect = null;
 
     this.levelIndex = 0;
+    /** Progress 0..3 within a run (floor number − 1). */
+    this.runLevelIndex = 0;
+    /** Order of LEVELS indices: three dungeon maps shuffled, then boss. */
+    this.levelSequence = /** @type {number[]} */ ([0, 1, 2, 3]);
     this.score = 0;
     this.zoom = 1;
     this.minZoom = 0.55;
@@ -104,14 +124,26 @@ export class Game {
     if (!def) return;
 
     this.levelIndex = index;
-    this.collisionMap = buildTileMap(def);
+
+    /** @type {number[][]} */
+    let tiles;
+    if (def.bossRoom) {
+      tiles = cloneTilesFromRows(def.rows);
+      placeRandomCoverBlocks(tiles);
+      this.collisionMap = buildTileMapFromTiles(tiles);
+    } else {
+      this.collisionMap = buildTileMap(def);
+      tiles = this.collisionMap.tiles;
+    }
+
     this.worldW = this.collisionMap.width;
     this.worldH = this.collisionMap.height;
 
-    const tiles = this.collisionMap.tiles;
     const topo = analyzeFloorTopology(tiles);
+    const spawnable = getSpawnableFloor(topo, tiles);
 
-    let leftZone = filterLeftSpawnZone(topo.floor, topo.cols);
+    let leftZone = filterLeftSpawnZone(spawnable, topo.cols);
+    if (leftZone.length === 0) leftZone = spawnable;
     if (leftZone.length === 0) leftZone = topo.floor;
     const playerCell = pickRandom(leftZone);
     const sp = tileCenter(playerCell.tx, playerCell.ty);
@@ -120,8 +152,42 @@ export class Game {
       this.player.health = Math.min(carryHealth, this.player.maxHealth);
     }
 
+    if (def.bossRoom) {
+      this.portalRect = null;
+      const bossCell = pickBossSpawnCell(spawnable, playerCell);
+      const bc = tileCenter(bossCell.tx, bossCell.ty);
+      const reserved = new Set();
+      reserved.add(`${playerCell.tx},${playerCell.ty}`);
+      reserved.add(`${bossCell.tx},${bossCell.ty}`);
+      const pickupCells = pickPickupCells(
+        spawnable,
+        reserved,
+        def.pickups.length,
+      );
+      this.pickups = def.pickups
+        .map((p, i) => {
+          const cell = pickupCells[i];
+          if (!cell) return null;
+          const c = tileCenter(cell.tx, cell.ty);
+          return {
+            x: c.x,
+            y: c.y,
+            kind: p.kind,
+            r: 10,
+            collected: false,
+          };
+        })
+        .filter((pu) => pu != null);
+      this.bots = [new Boss(bc.x, bc.y)];
+      this.bullets = [];
+      return;
+    }
+
+    const portalSpec = def.portal;
+    if (!portalSpec) return;
+
     const { anchor: portalAnchor, tw: portalTw, th: portalTh } =
-      resolvePortalPlacement(tiles, def.portal.tw, def.portal.th);
+      resolvePortalPlacement(tiles, portalSpec.tw, portalSpec.th);
     this.portalRect = portalWorldRect({
       tx: portalAnchor.tx,
       ty: portalAnchor.ty,
@@ -129,13 +195,20 @@ export class Game {
       th: portalTh,
     });
 
+    /** @type {{ variant?: string }[]} */
+    let botDefs = def.bots.map((b) => ({ ...b }));
+    if (!def.bossRoom && this.runLevelIndex <= 2) {
+      botDefs.push({ variant: "shotgun" });
+    }
+
     const enemyCells = pickEnemySpawnCells(
       topo,
+      tiles,
       playerCell,
       portalAnchor,
       portalTw,
       portalTh,
-      def.bots.length,
+      botDefs.length,
     );
 
     const reserved = new Set();
@@ -150,7 +223,7 @@ export class Game {
     }
 
     const pickupCells = pickPickupCells(
-      topo.floor,
+      spawnable,
       reserved,
       def.pickups.length,
     );
@@ -169,7 +242,7 @@ export class Game {
       })
       .filter((pu) => pu != null);
 
-    this.bots = def.bots
+    this.bots = botDefs
       .map((b, i) => {
         const cell = enemyCells[i];
         if (!cell) return null;
@@ -188,7 +261,9 @@ export class Game {
     this.paused = false;
     this.score = 0;
     this.bullets = [];
-    this.loadLevel(0);
+    this.levelSequence = shuffleRunOrder();
+    this.runLevelIndex = 0;
+    this.loadLevel(this.levelSequence[0]);
     this.resize();
 
     this.audio.resume().then(() => this.audio.startBgm());
@@ -197,7 +272,10 @@ export class Game {
 
     document.dispatchEvent(
       new CustomEvent("gameStart", {
-        detail: { level: this.levelIndex + 1, totalLevels: LEVELS.length },
+        detail: {
+          level: this.runLevelIndex + 1,
+          totalLevels: LEVELS.length,
+        },
         bubbles: true,
       }),
     );
@@ -220,7 +298,7 @@ export class Game {
       new CustomEvent("gameOver", {
         detail: {
           score: this.score,
-          level: this.levelIndex + 1,
+          level: this.runLevelIndex + 1,
         },
         bubbles: true,
       }),
@@ -270,23 +348,23 @@ export class Game {
   }
 
   _advanceLevelOrWin() {
-    if (this.levelIndex >= LEVELS.length - 1) {
+    if (this.runLevelIndex >= this.levelSequence.length - 1) {
       this.victory();
       return;
     }
     const hp = this.player.health;
-    this.levelIndex += 1;
+    this.runLevelIndex += 1;
     document.dispatchEvent(
       new CustomEvent("levelUp", {
         detail: {
-          level: this.levelIndex + 1,
+          level: this.runLevelIndex + 1,
           totalLevels: LEVELS.length,
         },
         bubbles: true,
       }),
     );
     this.audio.playLevelUp();
-    this.loadLevel(this.levelIndex, hp);
+    this.loadLevel(this.levelSequence[this.runLevelIndex], hp);
     this.resize();
     this.onHudUpdate(this);
   }
@@ -316,7 +394,7 @@ export class Game {
   }
 
   _update(dt) {
-    if (!this.collisionMap || !this.portalRect) return;
+    if (!this.collisionMap) return;
 
     const input = this.input;
     this.player.aimAngle = Math.atan2(
@@ -343,6 +421,7 @@ export class Game {
 
     const pr = this.portalRect;
     if (
+      pr &&
       circleRectOverlapPortal(
         this.player.x,
         this.player.y,
@@ -380,24 +459,68 @@ export class Game {
       collisionMap: this.collisionMap,
       damagePlayer: (amt) => this._damagePlayer(amt),
       onBotHitPlayer: () => {},
-      spawnEnemyBullet: (bx, by, player) => {
+      spawnEnemyBullet: (bx, by, player, opts) => {
         const ang = Math.atan2(player.y - by, player.x - bx);
         const spd = 265;
-        this.bullets.push({
-          x: bx + Math.cos(ang) * 24,
-          y: by + Math.sin(ang) * 24,
-          vx: Math.cos(ang) * spd,
-          vy: Math.sin(ang) * spd,
-          life: 2.8,
-          fromPlayer: false,
-          r: 6,
-        });
+        const pushBullet = (px, py) => {
+          this.bullets.push({
+            x: px,
+            y: py,
+            vx: Math.cos(ang) * spd,
+            vy: Math.sin(ang) * spd,
+            life: 2.8,
+            fromPlayer: false,
+            r: 6,
+          });
+        };
+        if (opts?.shotgun) {
+          const perp = ang + Math.PI / 2;
+          const sep = 8;
+          for (const s of [-1, 1]) {
+            pushBullet(
+              bx + Math.cos(ang) * 24 + Math.cos(perp) * sep * s,
+              by + Math.sin(ang) * 24 + Math.sin(perp) * sep * s,
+            );
+          }
+        } else {
+          pushBullet(bx + Math.cos(ang) * 24, by + Math.sin(ang) * 24);
+        }
         this.audio.playTone(440, 0.04, 0.05);
+      },
+      spawnEnemyBulletAtAngle: (bx, by, angle) => {
+        const spd = 292;
+        this.bullets.push({
+          x: bx + Math.cos(angle) * 26,
+          y: by + Math.sin(angle) * 26,
+          vx: Math.cos(angle) * spd,
+          vy: Math.sin(angle) * spd,
+          life: 2.65,
+          fromPlayer: false,
+          r: 7,
+        });
+        this.audio.playTone(380, 0.028, 0.035);
       },
     };
 
     for (const b of this.bots) {
       b.update(dt, botCtx);
+    }
+
+    for (const bot of this.bots) {
+      if (
+        bot.variant === "boss" &&
+        bot.alive &&
+        /** @type {{ phase?: string }} */ (bot).phase === "charge"
+      ) {
+        const d = Math.hypot(bot.x - this.player.x, bot.y - this.player.y);
+        if (d < bot.radius + this.player.radius + 1) {
+          if (/** @type {{ chargeHitCooldown?: number }} */ (bot).chargeHitCooldown <= 0) {
+            /** @type {{ chargeHitCooldown?: number }} */ (bot).chargeHitCooldown = 0.42;
+            this._damagePlayer(12);
+            this.audio.playTone(95, 0.07, 0.1);
+          }
+        }
+      }
     }
 
     const map = this.collisionMap;
@@ -425,12 +548,17 @@ export class Game {
           if (!bot.alive || bot.markRemoved) continue;
           const d = Math.hypot(p.x - bot.x, p.y - bot.y);
           if (d < bot.radius + br) {
+            const hpBefore = bot.health;
             bot.takeDamage(12, p.x, p.y);
             hit = true;
             this.audio.playHit();
-            if (bot.health <= 0) {
-              this.score += 100;
+            if (hpBefore > 0 && bot.health <= 0) {
+              this.score += bot.variant === "boss" ? 800 : 100;
               this.onHudUpdate(this);
+              const lv = LEVELS[this.levelIndex];
+              if (lv?.bossRoom && bot.variant === "boss") {
+                this.victory();
+              }
             }
             break;
           }
@@ -524,36 +652,70 @@ export class Game {
     }
 
     for (const bot of this.bots) {
+      const dr = bot.drawRadius ?? bot.radius;
       if (!bot.alive) {
         ctx.globalAlpha = 0.35;
         ctx.fillStyle = "#4a5a6e";
         ctx.beginPath();
-        ctx.arc(bot.x, bot.y, bot.radius, 0, Math.PI * 2);
+        ctx.arc(bot.x, bot.y, dr, 0, Math.PI * 2);
         ctx.fill();
         ctx.globalAlpha = 1;
         continue;
       }
       let hue = 140;
-      if (bot.fsm.currentState === "FLEE") hue = 200;
-      else if (bot.fsm.currentState === "ATTACK") hue = 0;
+      if (bot.variant === "boss") {
+        hue =
+          /** @type {{ phase?: string }} */ (bot).phase === "vulnerable"
+            ? 48
+            : /** @type {{ phase?: string }} */ (bot).phase === "charge"
+              ? 12
+              : 278;
+      } else if (bot.variant === "shotgun") hue = 312;
+      else if (bot.fsm?.currentState === "FLEE") hue = 200;
+      else if (bot.fsm?.currentState === "ATTACK") hue = 0;
       else if (bot.variant === "brute") hue = 25;
       else if (bot.variant === "gunner") hue = 285;
       const lit = bot.hitFlash > 0;
       ctx.fillStyle = `hsl(${hue}, ${lit ? 40 : 65}%, ${lit ? 78 : 42}%)`;
       ctx.beginPath();
-      ctx.arc(bot.x, bot.y, bot.radius, 0, Math.PI * 2);
+      ctx.arc(bot.x, bot.y, dr, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = "rgba(255,255,255,0.25)";
-      ctx.lineWidth = 2;
+      ctx.strokeStyle =
+        bot.variant === "boss" ? "rgba(255,200,255,0.45)" : "rgba(255,255,255,0.25)";
+      ctx.lineWidth = bot.variant === "boss" ? 3 : 2;
       ctx.stroke();
 
+      if (bot.variant === "boss" && /** @type {{ phase?: string }} */ (bot).phase === "charge") {
+        const ca = /** @type {{ chargeAngle?: number }} */ (bot).chargeAngle ?? 0;
+        ctx.strokeStyle = "rgba(255, 90, 35, 0.95)";
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.arc(bot.x, bot.y, dr + 6, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.strokeStyle = "rgba(255, 220, 140, 0.55)";
+        ctx.lineWidth = 12;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(
+          bot.x - Math.cos(ca) * (dr + 26),
+          bot.y - Math.sin(ca) * (dr + 26),
+        );
+        ctx.lineTo(
+          bot.x + Math.cos(ca) * (dr + 4),
+          bot.y + Math.sin(ca) * (dr + 4),
+        );
+        ctx.stroke();
+        ctx.lineCap = "butt";
+      }
+
+      const barW = bot.variant === "boss" ? 44 : 36;
       ctx.fillStyle = "rgba(0,0,0,0.45)";
-      ctx.fillRect(bot.x - 18, bot.y - bot.radius - 10, 36, 5);
+      ctx.fillRect(bot.x - barW / 2, bot.y - dr - 10, barW, 5);
       ctx.fillStyle = "#3ddc84";
       ctx.fillRect(
-        bot.x - 18,
-        bot.y - bot.radius - 10,
-        36 * (bot.health / bot.maxHealth),
+        bot.x - barW / 2,
+        bot.y - dr - 10,
+        barW * (bot.health / bot.maxHealth),
         5,
       );
     }

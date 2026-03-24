@@ -12,7 +12,7 @@ export class Bot {
    * @param {number} x
    * @param {number} y
    * @param {{ x: number; y: number }[]} waypoints
-   * @param {{ variant?: "grunt" | "brute" | "gunner" }} [options]
+   * @param {{ variant?: "grunt" | "brute" | "gunner" | "shotgun" }} [options]
    */
   constructor(x, y, waypoints, options = {}) {
     this.spawnX = x;
@@ -24,9 +24,21 @@ export class Bot {
     this.variant = options.variant ?? "grunt";
     this.radius = 16;
     this.speedPatrol = this.variant === "brute" ? 75 : 90;
-    this.speedChase = this.variant === "brute" ? 125 : this.variant === "gunner" ? 110 : 150;
+    this.speedChase =
+      this.variant === "brute"
+        ? 125
+        : this.variant === "gunner" || this.variant === "shotgun"
+          ? 110
+          : 150;
     this.speedFlee = this.variant === "brute" ? 140 : 155;
-    this.maxHealth = this.variant === "brute" ? 52 : this.variant === "gunner" ? 36 : 40;
+    this.maxHealth =
+      this.variant === "brute"
+        ? 52
+        : this.variant === "gunner"
+          ? 36
+          : this.variant === "shotgun"
+            ? 34
+            : 40;
     this.health = this.maxHealth;
     this.attackTimer = 0;
     this.attackCooldown = 0;
@@ -85,7 +97,7 @@ export class Bot {
             return;
           }
           const inAttack =
-            this.variant === "gunner"
+            this.variant === "gunner" || this.variant === "shotgun"
               ? dist < GUNNER_ATTACK_RANGE
               : dist < BOT_DIST_ATTACK;
           if (inAttack) {
@@ -101,8 +113,10 @@ export class Bot {
       })
       .addState("ATTACK", {
         enter: () => {
-          this.attackTimer = this.variant === "gunner" ? 0.5 : 0.35;
-          this.attackCooldown = this.variant === "gunner" ? 0.45 : 0.5;
+          this.attackTimer =
+            this.variant === "gunner" || this.variant === "shotgun" ? 0.5 : 0.35;
+          this.attackCooldown =
+            this.variant === "gunner" || this.variant === "shotgun" ? 0.45 : 0.5;
         },
         update: (dt, ctx) => {
           this._applyKnockback(dt, ctx);
@@ -113,12 +127,15 @@ export class Bot {
             this.fsm.transition("FLEE", "health<20%");
             return;
           }
-          if (this.variant === "gunner") {
+          if (this.variant === "gunner" || this.variant === "shotgun") {
             this.attackTimer -= dt;
             this.attackCooldown -= dt;
             if (this.attackCooldown <= 0) {
-              ctx.spawnEnemyBullet?.(this.x, this.y, player);
-              this.attackCooldown = 0.55;
+              ctx.spawnEnemyBullet?.(this.x, this.y, player, {
+                shotgun: this.variant === "shotgun",
+              });
+              this.attackCooldown =
+                this.variant === "shotgun" ? 0.62 : 0.55;
             }
             if (dist > GUNNER_ATTACK_RANGE + 40) {
               this.fsm.transition("CHASE", "outOfGunRange");
